@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -7,19 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_engine_from_config
 
 from alembic import context
 
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.config import settings
 from app.database import Base
 
 # Import models to ensure they are registered with SQLAlchemy's metadata
-from app.modules.users.models import User
-from app.modules.workspaces.models import Workspace, WorkspaceMember
-from app.modules.projects.models import Project
-from app.modules.tasks.models import Task, Label, TaskLabel, TaskComment
-
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -35,7 +30,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    
+
     url = settings.DATABASE_URL
     context.configure(
         url=url,
@@ -66,10 +61,10 @@ async def run_async_migrations(connectable: AsyncEngine) -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    
+
     # Lấy cấu hình mặc định từ file alembic.ini
     configuration = config.get_section(config.config_ini_section, {})
-    
+
     # Ghi đè URL mặc định bằng URL lấy từ file .env qua Pydantic
     configuration["sqlalchemy.url"] = settings.DATABASE_URL
 
@@ -84,9 +79,7 @@ def run_migrations_online() -> None:
         asyncio.run(run_async_migrations(connectable))
     else:
         with connectable.connect() as connection:
-            context.configure(
-                connection=connection, target_metadata=target_metadata
-            )
+            context.configure(connection=connection, target_metadata=target_metadata)
             with context.begin_transaction():
                 context.run_migrations()
 

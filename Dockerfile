@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /code
 
@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # Cài đặt các thư viện hệ thống cần thiết (nếu có)
-RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && apt-get clean
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements và cài đặt python packages
 COPY ./requirements.txt /code/requirements.txt
@@ -17,4 +17,4 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 COPY . /code/
 
 # Lệnh khởi chạy uvicorn bên trong docker
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
