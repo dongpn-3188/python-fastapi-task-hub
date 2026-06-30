@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import FastAPI
 
 app = FastAPI(
@@ -8,12 +10,12 @@ app = FastAPI(
 
 
 @app.get("/")
-def read_root():
+def read_root() -> dict[str, Any]:
     return {"message": "Chào mừng bạn đến với TaskHub API!"}
 
 
 @app.get("/health", tags=["System"])
-async def read_health():
+async def read_health() -> dict[str, Any]:
     return {
         "status": "Healthy",
         "message": "Hệ thống đang hoạt động bình thường",
