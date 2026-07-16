@@ -7,6 +7,7 @@ from app.modules.users.schemas import (
     UserChangePassword,
     UserResponse,
     UserUpdate,
+    UserUpdateAdmin,
 )
 from app.modules.users.service import UserService
 
@@ -34,7 +35,26 @@ async def patch_me(
 ) -> UserResponse:
     """Endpoint để cập nhật thông tin user"""
     user_service = UserService(db)
-    updated_user = await user_service.update_user(current_user_id, user_data)
+    updated_user = await user_service.update_user(
+        current_user_id, current_user_id, user_data
+    )
+    return UserResponse.model_validate(updated_user)
+
+@router.patch(
+    "/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK
+)
+async def patch_user(
+    user_id: str,
+    user_data: UserUpdateAdmin,
+    current_user_id: str = Depends(get_current_user_id), # noqa: B008
+    db: AsyncSession = Depends(get_db), # noqa: B008
+) -> UserResponse:
+    """Endpoint để cập nhật thông tin user"""
+    user_service = UserService(db)
+    await user_service.verify_admin_access(current_user_id)
+    updated_user = await user_service.update_user(
+        current_user_id, user_id, user_data
+    )
     return UserResponse.model_validate(updated_user)
 
 @router.post(

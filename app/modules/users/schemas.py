@@ -31,23 +31,27 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     """Dữ liệu để cập nhật thông tin user"""
 
-    id: str | None = Field(
-        default=None,
-        description="id user cần cập nhật"
-    )
     email: EmailStr | None = Field(
         default=None,
         description="Địa chỉ email mới"
-    )
-    password: str | None = Field(
-        default=None,
-        min_length=6,
-        description="Mật khẩu từ 6 ký tự trở lên"
     )
     full_name: str | None = Field(
         default=None,
         min_length=2,
         max_length=100, description="Họ và tên đầy đủ"
+    )
+
+    model_config = {
+        "from_attributes": True
+    }
+
+class UserUpdateAdmin(UserUpdate):
+    """Dữ liệu để cập nhật thông tin user"""
+
+    password: str | None = Field(
+        default=None,
+        min_length=6,
+        description="Mật khẩu từ 6 ký tự trở lên"
     )
     is_active: bool | None = Field(
         default=None,
@@ -57,10 +61,6 @@ class UserUpdate(BaseModel):
         default=None,
         description="Quyền hạn của user"
     )
-
-    model_config = {
-        "from_attributes": True
-    }
 
 class UserChangePassword(BaseModel):
     """Dữ liệu để đổi mật khẩu user"""

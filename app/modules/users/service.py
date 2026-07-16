@@ -57,34 +57,30 @@ class UserService:
 
         return info_user
 
-    async def update_user(self, current_user_id: str, user_data: UserUpdate) -> User:
+    async def update_user(
+        self,
+        current_user_id: str,
+        target_user_id: str,
+        user_data: UserUpdate
+    ) -> User:
         """Logic cập nhật thông tin user"""
         login_user = await self.get_user(current_user_id)
 
+        update_data = user_data.model_dump(exclude_unset=True)
+
         if login_user.role != UserRole.ADMIN:
-            if (
-                user_data.id is not None
-                or user_data.password is not None
-                or user_data.role is not None
-                or user_data.is_active is not None
-            ):
+            admin_fields = {"password", "role", "is_active"}
+
+            if any(field in update_data for field in admin_fields):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Không có quyền thay đổi thông tin này"
                 )
 
-        if user_data.id:
-            need_update_user = await self.get_user(str(user_data.id))
-        else:
-            need_update_user = login_user
-
-        update_data = user_data.model_dump(exclude_unset=True)
+        need_update_user = await self.get_user(target_user_id)
 
         if "password" in update_data and update_data["password"]:
             update_data["password"] = hash_password(update_data["password"])
-
-        if "id" in update_data:
-            del update_data["id"]
 
         for key, value in update_data.items():
             setattr(need_update_user, key, value)
@@ -115,3 +111,13 @@ class UserService:
         self.db.add(user)
         await self.db.commit()
         return None
+
+    async def verify_admin_access(self, current_user_id: str) -> bool:
+        user = await self.get_user(current_user_id)
+        if user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Chỉ Admin mới có quyền thực hiện hành động này"
+            )
+
+        return True
