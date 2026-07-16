@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.modules.auth.utils import decode_jwt_token
-from app.services.redis import (  # Import hàm lấy redis client của bạn
+from app.services.redis import (
     RedisClient,
     get_redis_client,
 )
