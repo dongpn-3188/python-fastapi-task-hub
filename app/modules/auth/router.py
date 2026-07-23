@@ -33,7 +33,7 @@ async def register(
     """Endpoint xử lý Đăng ký tài khoản người dùng mới"""
     user_service = UserService(db)
     created_user = await user_service.create_user(user_data)
-    return UserResponse.from_orm(created_user)
+    return UserResponse.model_validate(created_user)
 
 
 @router.post("/refresh", response_model=TokenResponse, status_code=status.HTTP_200_OK)
