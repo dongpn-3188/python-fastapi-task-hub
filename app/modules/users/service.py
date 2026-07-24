@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.modules.auth.utils import hash_password, verify_password
 from app.modules.users.models import User, UserRole

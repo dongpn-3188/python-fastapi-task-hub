@@ -2,8 +2,8 @@ import json
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import settings
 from app.modules.auth.schemas import LoginRequest, TokenResponse
