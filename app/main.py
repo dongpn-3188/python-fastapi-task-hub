@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.modules.auth.router import router as auth_router
 from app.modules.users.router import router as users_router
+from app.modules.workspaces.router import router as workspaces_router
 
 app = FastAPI(
     title="TaskHub API",
@@ -15,6 +16,7 @@ app = FastAPI(
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
+app.include_router(workspaces_router, prefix="/api/v1")
 
 @app.get("/")
 def read_root() -> dict[str, Any]:
