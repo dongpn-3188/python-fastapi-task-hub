@@ -67,6 +67,10 @@ class WorkspaceMember(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
+    deleted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=None, nullable=True
+    )
+
     # Quan hệ giúp lấy thông tin workspace và user nhanh chóng
     workspace = relationship("Workspace", foreign_keys=[workspace_id])
     user = relationship("User", foreign_keys=[user_id])

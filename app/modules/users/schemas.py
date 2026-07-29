@@ -25,8 +25,9 @@ class UserResponse(BaseModel):
     is_active: bool
     role: str
 
-    class Config:
-        from_attributes = True  # Giúp Pydantic hiểu và parse được từ SQLAlchemy Model
+    model_config = {
+        "from_attributes": True
+    }
 
 class UserUpdate(BaseModel):
     """Dữ liệu để cập nhật thông tin user"""
