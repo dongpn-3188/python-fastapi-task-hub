@@ -15,6 +15,8 @@ from app.modules.workspaces.schemas import (
     WorkspaceResponse,
 )
 
+from app.modules.projects.schemas import ProjectBasicInfo
+
 
 class WorkspaceService:
     def __init__(self, db: AsyncSession):
@@ -116,8 +118,11 @@ class WorkspaceService:
                 if current_user_member.role != WorkspaceRole.OWNER:
                     raise not_permission
 
-    async def get_workspace_info(self, workspace_id:str) -> WorkspaceResponse:
+    async def get_workspace_info(self, workspace_id:str, projects_info: list[ProjectBasicInfo] | None = None) -> WorkspaceResponse:
         """Logic lấy thông tin workspace theo id"""
+
+        if projects_info is None:
+            projects_info = []
 
         self.db.expire_all()
 
@@ -163,7 +168,8 @@ class WorkspaceService:
             id=workspace.id,
             name=workspace.name,
             owner=owner_info,
-            members=members_info
+            members=members_info,
+            projects=projects_info
         )
 
     async def create_new_workspace(
@@ -200,7 +206,7 @@ class WorkspaceService:
         self.db.add(new_workspace_member)
         await self.db.commit()
 
-        return await self.get_workspace_info(str(new_workspace.id))
+        return await self.get_workspace_info(str(new_workspace_id))
 
     async def add_members_to_workspace(
         self, workspace_id: str, members_data: WorkspaceMembersRequest

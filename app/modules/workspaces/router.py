@@ -13,6 +13,11 @@ from app.modules.workspaces.schemas import (
     WorkspaceResponse,
 )
 from app.modules.workspaces.service import WorkspaceService
+from app.modules.projects.schemas import (
+    ProjectCreate,
+    ProjectResponse,
+)
+from app.modules.projects.service import ProjectService
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 
@@ -40,8 +45,10 @@ async def get_workspace(
 ) -> WorkspaceResponse:
     """Endpoint lấy thông tin workspace"""
     workspace_service = WorkspaceService(db)
+    project_service = ProjectService(db)
     await workspace_service.check_permission(str(id), current_user_id)
-    return await workspace_service.get_workspace_info(str(id))
+    projects_info = await project_service.get_projects_of_workspace(str(id))
+    return await workspace_service.get_workspace_info(str(id), projects_info)
 
 @router.post(
     "/{id}/members", status_code=status.HTTP_200_OK
@@ -91,3 +98,22 @@ async def remove_members(
     )
     await workspace_service.remove_member(str(id), str(user_id))
     return None
+
+@router.post(
+    "/{workspace_id}/projects",
+    response_model=ProjectResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_project(
+    workspace_id: uuid.UUID,
+    project_data: ProjectCreate,
+    current_user_id: str = Depends(get_current_user_id),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> ProjectResponse:
+    """Endpoint tạo project mới trong workspace"""
+    project_service = ProjectService(db)
+    return await project_service.create_new_project(
+        workspace_id=str(workspace_id),
+        user_id=current_user_id,
+        project_data=project_data,
+    )
