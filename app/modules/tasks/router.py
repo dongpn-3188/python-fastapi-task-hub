@@ -5,10 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user_id
 from app.database import get_db
-from app.modules.projects.service import ProjectService
 from app.modules.tasks.schemas import TaskResponse, UpdateTaskRequest
 from app.modules.tasks.service import TaskService
-from app.modules.workspaces.models import WorkspaceRole
 from app.services.redis import RedisClientWrapper, get_redis_client
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -30,7 +28,7 @@ async def update_task_by_id(
 @router.delete(
     "/{id}", status_code=status.HTTP_204_NO_CONTENT
 )
-async def update_task_by_id(
+async def delete_task_by_id(
     id: uuid.UUID,
     current_user_id: str = Depends(get_current_user_id),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008

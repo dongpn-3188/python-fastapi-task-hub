@@ -1,10 +1,11 @@
 import uuid
-from typing import Self
-from enum import Enum as PyEnum
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from enum import Enum as PyEnum
 
-from app.modules.tasks.models import TaskStatus, TaskPriority
+from pydantic import BaseModel, Field
+
+from app.modules.tasks.models import TaskPriority, TaskStatus
+
 
 class TaskResponse(BaseModel):
     """Dữ liệu trả về thông tin Task"""
@@ -48,8 +49,12 @@ class TaskFilterRequest(BaseModel):
     """Dữ liệu filter danh sách Task"""
 
     filter: list[FilterOption] = Field(default_factory=list)
-    page: int = Field(default=1, ge=1, description="Trang hiện tại, tối thiểu là 1")
-    size: int = Field(default=20, ge=1, le=100, description="Kích thước trang, tối đa 100")
+    page: int = Field(
+        default=1, ge=1, description="Trang hiện tại, tối thiểu là 1"
+    )
+    size: int = Field(
+        default=20, ge=1, le=100, description="Kích thước trang, tối đa 100"
+    )
 
 class TaskBaseRequest(BaseModel):
     """Dữ liệu dùng chung cho 2 request"""

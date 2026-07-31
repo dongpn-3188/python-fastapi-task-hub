@@ -1,6 +1,7 @@
 import uuid
 from typing import Any
-from sqlalchemy import ColumnElement, select
+
+from sqlalchemy import ColumnElement, Select
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.modules.tasks.models import Task
@@ -19,7 +20,7 @@ FIELD_MAP: dict[FilterField, InstrumentedAttribute[Any]] = {
 }
 
 
-def apply_task_filters(stmt, filter_req: TaskFilterRequest):
+def apply_task_filters(stmt: Select[Any], filter_req: TaskFilterRequest)->Select[Any]:
     """Convert filter request thành sql condition"""
     if not filter_req or not filter_req.filter:
         return stmt
@@ -37,7 +38,7 @@ def apply_task_filters(stmt, filter_req: TaskFilterRequest):
                 val = uuid.UUID(item.value)
             except (ValueError, TypeError):
                 continue
-        
+
         match item.method:
             case FilterMethod.IS:
                 conditions.append(column == val)

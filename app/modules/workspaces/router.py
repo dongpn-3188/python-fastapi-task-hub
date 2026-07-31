@@ -6,6 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user_id
 from app.database import get_db
+from app.modules.projects.schemas import (
+    ProjectCreate,
+    ProjectResponse,
+)
+from app.modules.projects.service import ProjectService
 from app.modules.workspaces.models import WorkspaceRole
 from app.modules.workspaces.schemas import (
     WorkspaceCreate,
@@ -13,11 +18,6 @@ from app.modules.workspaces.schemas import (
     WorkspaceResponse,
 )
 from app.modules.workspaces.service import WorkspaceService
-from app.modules.projects.schemas import (
-    ProjectCreate,
-    ProjectResponse,
-)
-from app.modules.projects.service import ProjectService
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 
@@ -47,7 +47,7 @@ async def get_workspace(
     workspace_service = WorkspaceService(db)
     project_service = ProjectService(db)
     await workspace_service.check_permission(str(id), current_user_id)
-    projects_info = await project_service.get_projects_of_workspace(str(id))
+    projects_info = await project_service.get_projects_in_workspace(id)
     return await workspace_service.get_workspace_info(str(id), projects_info)
 
 @router.post(

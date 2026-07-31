@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.modules.projects.schemas import ProjectBasicInfo
 from app.modules.users.models import User
 from app.modules.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole
 from app.modules.workspaces.schemas import (
@@ -14,8 +15,6 @@ from app.modules.workspaces.schemas import (
     WorkspaceMembersRequest,
     WorkspaceResponse,
 )
-
-from app.modules.projects.schemas import ProjectBasicInfo
 
 
 class WorkspaceService:
@@ -118,7 +117,9 @@ class WorkspaceService:
                 if current_user_member.role != WorkspaceRole.OWNER:
                     raise not_permission
 
-    async def get_workspace_info(self, workspace_id:str, projects_info: list[ProjectBasicInfo] | None = None) -> WorkspaceResponse:
+    async def get_workspace_info(
+            self, workspace_id:str, projects_info: list[ProjectBasicInfo] | None = None
+    ) -> WorkspaceResponse:
         """Logic lấy thông tin workspace theo id"""
 
         if projects_info is None:

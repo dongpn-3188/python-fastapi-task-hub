@@ -1,24 +1,26 @@
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
+from typing import cast
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.modules.tasks.schemas import (
-    TaskResponse, 
-    TaskFilterRequest, 
-    CreateTaskRequest,
-    UpdateTaskRequest
-)
-from app.modules.tasks.models import Task, TaskStatus
-from app.modules.tasks.utils import apply_task_filters
+from app.modules.projects.models import Project
 from app.modules.projects.schemas import (
     PageInfo,
     TaskList,
 )
-from app.modules.projects.models import Project
-from app.modules.workspaces.models import WorkspaceRole, WorkspaceMember
+from app.modules.tasks.models import Task, TaskStatus
+from app.modules.tasks.schemas import (
+    CreateTaskRequest,
+    TaskFilterRequest,
+    TaskResponse,
+    UpdateTaskRequest,
+)
+from app.modules.tasks.utils import apply_task_filters
+from app.modules.workspaces.models import WorkspaceMember, WorkspaceRole
 from app.services.redis import RedisClientWrapper
 
 
@@ -38,7 +40,7 @@ class TaskService:
 
         stmt = apply_task_filters(stmt, filter_req=filter)
 
-        
+
         res = await self.db.execute(stmt)
         return list(res.scalars().all())
 
@@ -54,7 +56,7 @@ class TaskService:
             .options(selectinload(Task.assignee), selectinload(Task.creator))
         )
         res = await self.db.execute(stmt)
-        return res.scalars().all()   
+        return res.scalars().all()
 
     async def _get_tasks_from_cache(
         self, task_ids: list[uuid.UUID]
@@ -69,7 +71,7 @@ class TaskService:
         cached_tasks: dict[uuid.UUID, TaskResponse] = {}
         missed_ids: list[uuid.UUID] = []
 
-        for tid, cached_bytes in zip(task_ids, cached_bytes_list):
+        for tid, cached_bytes in zip(task_ids, cached_bytes_list, strict=True):
             if cached_bytes:
                 cached_tasks[tid] = TaskResponse.model_validate_json(cached_bytes)
             else:
@@ -94,7 +96,7 @@ class TaskService:
         return task_dtos
 
     async def get_task_list_by_filter(
-        self, project_id: uuid.UUID, filter_data: TaskFilterRequest        
+        self, project_id: uuid.UUID, filter_data: TaskFilterRequest
     ) -> TaskList:
         """Logic lấy thông tin danh sách Task theo filter"""
 
@@ -169,7 +171,7 @@ class TaskService:
             assignee_id=create_data.assignee_id,
             title=create_data.title,
             description=create_data.description,
-            status=TaskStatus.TODO, 
+            status=TaskStatus.TODO,
             priority=create_data.priority,
             due_date=create_data.due_date,
             created_by=uuid.UUID(creator)
@@ -185,7 +187,7 @@ class TaskService:
             await self.redis.safe_set(
                 f"task:{new_task.id}",
                 task_dto.model_dump_json(),
-                ex=86400, 
+                ex=86400,
             )
         except Exception:
             pass
@@ -196,10 +198,10 @@ class TaskService:
         self,
         task_id: uuid.UUID,
         user_id: str,
-        min_role: WorkspaceRole = WorkspaceRole.EDITOR, 
+        min_role: WorkspaceRole = WorkspaceRole.EDITOR,
     ) -> Task:
-        """Check quyền của user đối với 1 Task cụ thể. 
-        Trả về instance Task luôn để hàm update/delete bên dưới dùng tiếp, tránh query 2 lần!
+        """Check quyền của user đối với 1 Task cụ thể.
+        Trả về instance Task luôn để hàm update/delete bên dưới dùng tiếp
         """
         user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
 
@@ -209,7 +211,7 @@ class TaskService:
             .join(
                 WorkspaceMember,
                 (WorkspaceMember.workspace_id == Project.workspace_id)
-                & (WorkspaceMember.user_id == user_uuid) 
+                & (WorkspaceMember.user_id == user_uuid)
                 & (WorkspaceMember.deleted_at.is_(None)),
             )
             .where(Task.id == task_id)
@@ -229,7 +231,7 @@ class TaskService:
         task, member_role = row
 
         if task.created_by == user_uuid or task.assignee_id == user_uuid:
-            return task
+            return cast(Task, task)
 
         if min_role == WorkspaceRole.EDITOR and member_role == WorkspaceRole.VIEWER:
             raise not_found_or_forbidden
@@ -237,12 +239,14 @@ class TaskService:
         if min_role == WorkspaceRole.OWNER and member_role != WorkspaceRole.OWNER:
             raise not_found_or_forbidden
 
-        return task
+        return cast(Task, task)
 
     async def update_task(
         self, task_id: uuid.UUID, current_user_id: str, update_data: UpdateTaskRequest
     ) -> TaskResponse:
-        task_info = await self.check_task_permission(task_id=task_id, user_id=current_user_id)
+        task_info = await self.check_task_permission(
+            task_id=task_id, user_id=current_user_id
+        )
 
         update_dict = update_data.model_dump(exclude_unset=True)
 
@@ -253,12 +257,12 @@ class TaskService:
         await self.db.refresh(task_info)
 
         task_dto = TaskResponse.model_validate(task_info)
-        
+
         try:
             await self.redis.safe_set(
                 f"task:{task_info.id}",
                 task_dto.model_dump_json(),
-                ex=86400, 
+                ex=86400,
             )
         except Exception:
             pass
@@ -268,7 +272,9 @@ class TaskService:
     async def delete_task(
         self, task_id: uuid.UUID, current_user_id: str
     ) -> None:
-        task_info = await self.check_task_permission(task_id=task_id, user_id=current_user_id)
+        task_info = await self.check_task_permission(
+            task_id=task_id, user_id=current_user_id
+        )
 
         await self.db.delete(task_info)
         await self.db.commit()
@@ -279,4 +285,3 @@ class TaskService:
             pass
 
         return None
-    

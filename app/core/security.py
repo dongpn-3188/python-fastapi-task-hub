@@ -30,7 +30,7 @@ async def get_current_user_id(
     user_id = token_data.sub
 
     block_list_key = f"block_access_list:{user_id}"
-    raw_block_data = await redis_client.get(block_list_key)
+    raw_block_data = await redis_client.safe_get(block_list_key)
 
     if raw_block_data:
         try:

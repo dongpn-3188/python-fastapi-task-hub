@@ -7,17 +7,13 @@ from app.core.security import get_current_user_id
 from app.database import get_db
 from app.modules.projects.schemas import (
     ProjectBasicInfo,
-    ProjectUpdate,
     ProjectResponse,
+    ProjectUpdate,
 )
 from app.modules.projects.service import ProjectService
-from app.modules.workspaces.models import WorkspaceRole
-from app.modules.tasks.schemas import (
-    TaskFilterRequest, 
-    CreateTaskRequest,
-    TaskResponse
-)
+from app.modules.tasks.schemas import CreateTaskRequest, TaskFilterRequest, TaskResponse
 from app.modules.tasks.service import TaskService
+from app.modules.workspaces.models import WorkspaceRole
 from app.services.redis import RedisClientWrapper, get_redis_client
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -52,7 +48,7 @@ async def get_project_detail(
     """Endpoint lấy thông tin chi tiết project và task"""
     project_service = ProjectService(db)
     task_service = TaskService(db, redis_client)
-    project_info = await project_service.get_project_basic_info(id)
+    project_info = await project_service.get_project_basic_info(str(id))
     await project_service.check_permission(
         project_id=id,
         user_id=current_user_id

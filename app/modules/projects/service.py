@@ -1,11 +1,8 @@
 import uuid
-from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.modules.projects.models import Project, ProjectStatus
 from app.modules.projects.schemas import (
@@ -27,9 +24,9 @@ class ProjectService:
         self, project_id: str, user_id: str, data: ProjectUpdate
     ) -> ProjectBasicInfo:
         """Cập nhật project và kiểm tra quyền qua Subquery"""
-        
+
         update_data = data.model_dump(exclude_unset=True)
-        
+
 
         if not update_data:
             stmt_current = select(Project).where(Project.id == project_id)
@@ -58,7 +55,7 @@ class ProjectService:
             update(Project)
             .where(
                 Project.id == project_id,
-                permission_subquery.exists(), 
+                permission_subquery.exists(),
             )
             .values(**update_data)
             .returning(Project)
@@ -77,7 +74,7 @@ class ProjectService:
         return ProjectBasicInfo.model_validate(updated_project)
 
     async def create_new_project(
-        self, workspace_id: str, user_id: str, project_data: ProjectCreate        
+        self, workspace_id: str, user_id: str, project_data: ProjectCreate
     ) -> ProjectResponse:
         """Logic tạo project mới trong workspace"""
 
@@ -120,7 +117,7 @@ class ProjectService:
             workspace_id=workspace_id,
             name=project_data.name,
             description=project_data.description,
-            status=ProjectStatus.ACTIVE, 
+            status=ProjectStatus.ACTIVE,
         )
 
         self.db.add(new_project)
@@ -152,7 +149,19 @@ class ProjectService:
             )
         return ProjectBasicInfo.model_validate(project)
 
-    async def check_permission(        
+    async def get_projects_in_workspace(
+        self, workspace_id: uuid.UUID
+    ) -> list[ProjectBasicInfo]:
+        """Logic lấy danh sách project trong workspace"""
+
+        res = await self.db.execute(
+            select(Project).where(Project.workspace_id == workspace_id)
+        )
+        projects = res.scalars().all()
+
+        return [ProjectBasicInfo.model_validate(p) for p in projects]
+
+    async def check_permission(
         self, project_id: uuid.UUID, user_id: str,
         min_role: WorkspaceRole = WorkspaceRole.VIEWER
     ) -> None:
@@ -161,7 +170,9 @@ class ProjectService:
         result = await self.db.execute(
             select(WorkspaceMember)
             .where(
-                WorkspaceMember.workspace_id == (select(Project.workspace_id).where(Project.id == project_id)),
+                WorkspaceMember.workspace_id == (
+                    select(Project.workspace_id).where(Project.id == project_id)
+                ),
                 WorkspaceMember.user_id == user_id,
                 WorkspaceMember.deleted_at.is_(None)
             )

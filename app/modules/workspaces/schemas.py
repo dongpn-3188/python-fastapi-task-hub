@@ -2,8 +2,8 @@ import uuid
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.modules.workspaces.models import WorkspaceMember, WorkspaceRole
 from app.modules.projects.schemas import ProjectBasicInfo
+from app.modules.workspaces.models import WorkspaceMember, WorkspaceRole
 
 
 class WorkspaceCreate(BaseModel):
@@ -45,7 +45,7 @@ class WorkspaceResponse(BaseModel):
     owner: UserInfo
     members: list[UserInfo] = Field(default_factory=list)
     projects: list[ProjectBasicInfo] = Field(default_factory=list)
-    
+
     model_config = {
         "from_attributes": True
     }

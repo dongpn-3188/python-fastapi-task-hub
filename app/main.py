@@ -1,19 +1,20 @@
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any
 
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.services.redis import redis_client
-
 from app.modules.auth.router import router as auth_router
+from app.modules.projects.router import router as projects_router
 from app.modules.users.router import router as users_router
 from app.modules.workspaces.router import router as workspaces_router
-from app.modules.projects.router import router as projects_router
+from app.services.redis import redis_client
+
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     # Startup: Khởi tạo kết nối Redis 1 lần duy nhất
     await redis_client.init()
     yield

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from app.modules.projects.models import ProjectStatus
 from app.modules.tasks.schemas import TaskResponse
 
+
 class ProjectCreate(BaseModel):
     """Dữ liệu khởi tạo project mới trong workspace"""
 
@@ -17,14 +18,14 @@ class ProjectUpdate(BaseModel):
     """Dữ liệu cập nhật của project"""
 
     name: str | None = Field(
-        default=None, 
+        default=None,
         min_length=1,
         max_length=255,
         description="Tên của project"
     )
     description: str | None = Field(
-        default=None, 
-        max_length=200, 
+        default=None,
+        max_length=200,
         description="Mô tả project"
     )
 
