@@ -51,6 +51,7 @@ class ProjectBasicInfo(BaseModel):
     """Dữ liệu thông tin cơ bản của project"""
 
     id: uuid.UUID
+    workspace_id: uuid.UUID
     name: str
     status: ProjectStatus
     description: str | None = None
@@ -60,8 +61,7 @@ class ProjectBasicInfo(BaseModel):
     }
 
 class ProjectResponse(ProjectBasicInfo):
-    """Dữ liệu trả về thông tin Project"""
+    """Dữ liệu trả về thông tin chi tiết Project"""
 
-    workspace_id: uuid.UUID
     tasks: TaskList
 

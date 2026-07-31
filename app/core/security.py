@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.modules.auth.utils import decode_jwt_token
 from app.services.redis import (
-    RedisClient,
+    RedisClientWrapper,
     get_redis_client,
 )
 
@@ -14,7 +14,7 @@ reusable_oauth2 = HTTPBearer(scheme_name="Authorization")
 
 async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(reusable_oauth2),  # noqa: B008
-    redis_client: RedisClient = Depends(get_redis_client),  # noqa: B008
+    redis_client: RedisClientWrapper = Depends(get_redis_client),  # noqa: B008
 ) -> str:
     """Dependency giải mã Access Token từ HTTPBearer và check Blocklist"""
     access_token = credentials.credentials

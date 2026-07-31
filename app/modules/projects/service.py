@@ -2,7 +2,7 @@ import uuid
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -137,3 +137,52 @@ class ProjectService:
                 page=PageInfo(page_number=1, page_size=10, total_items=0),
             ),
         )
+
+    async def get_project_basic_info(self, project_id: str) -> ProjectBasicInfo:
+        """Logic lấy thông tin cơ bản của project"""
+
+        res = await self.db.execute(
+            select(Project).where(Project.id == project_id)
+        )
+        project = res.scalar_one_or_none()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project không tồn tại",
+            )
+        return ProjectBasicInfo.model_validate(project)
+
+    async def check_permission(        
+        self, project_id: uuid.UUID, user_id: str,
+        min_role: WorkspaceRole = WorkspaceRole.VIEWER
+    ) -> None:
+        """Logic kiểm tra quyền hạn của user trong project"""
+
+        result = await self.db.execute(
+            select(WorkspaceMember)
+            .where(
+                WorkspaceMember.workspace_id == (select(Project.workspace_id).where(Project.id == project_id)),
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.deleted_at.is_(None)
+            )
+        )
+
+        current_user_member = result.scalar_one_or_none()
+
+        not_permission = HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền thực hiện thao tác này",
+        )
+
+        if current_user_member is None:
+            raise not_permission
+
+        match min_role:
+            case WorkspaceRole.VIEWER:
+                return None
+            case WorkspaceRole.EDITOR:
+                if current_user_member.role == WorkspaceRole.VIEWER:
+                    raise not_permission
+            case WorkspaceRole.OWNER:
+                if current_user_member.role != WorkspaceRole.OWNER:
+                    raise not_permission
