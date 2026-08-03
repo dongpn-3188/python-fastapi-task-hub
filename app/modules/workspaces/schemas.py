@@ -1,9 +1,9 @@
 import uuid
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
-from app.modules.projects.schemas import ProjectBasicInfo
-from app.modules.workspaces.models import WorkspaceMember, WorkspaceRole
+from app.modules.common.schemas import ProjectBasicInfo, UserInfo
+from app.modules.workspaces.models import WorkspaceRole
 
 
 class WorkspaceCreate(BaseModel):
@@ -12,30 +12,6 @@ class WorkspaceCreate(BaseModel):
     name: str = Field(
         ..., min_length=2, max_length=100, description="Tên của workspace"
     )
-
-
-class UserInfo(BaseModel):
-    """Dữ liệu của user trong workspace"""
-
-    id: uuid.UUID
-    email: EmailStr
-    full_name: str
-    workspace_role: str
-
-    model_config = {
-        "from_attributes": True
-    }
-
-    @classmethod
-    def from_workspace_member(cls, member: "WorkspaceMember") -> "UserInfo":
-        """Map trực tiếp từ đối tượng WorkspaceMember của SQLAlchemy"""
-
-        return cls(
-            id=member.user.id,
-            email=member.user.email,
-            full_name=member.user.full_name,
-            workspace_role=member.role
-        )
 
 class WorkspaceResponse(BaseModel):
     """Dữ liệu trả về thông tin Workspace"""

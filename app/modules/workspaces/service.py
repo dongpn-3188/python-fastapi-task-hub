@@ -7,11 +7,10 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.modules.projects.schemas import ProjectBasicInfo
+from app.modules.common.schemas import ProjectBasicInfo, UserInfo
 from app.modules.users.models import User
 from app.modules.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole
 from app.modules.workspaces.schemas import (
-    UserInfo,
     WorkspaceMembersRequest,
     WorkspaceResponse,
 )
@@ -82,22 +81,27 @@ class WorkspaceService:
 
         return valid_user_ids, req_user_ids - valid_user_ids
 
+    async def get_member(
+            self,
+            workspace_id: uuid.UUID | str,
+            user_id: uuid.UUID | str
+    ) -> WorkspaceMember | None:
+        """Kiểm tra xem user có phải thành viên active trong workspace không"""
+        stmt = select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == str(workspace_id),
+            WorkspaceMember.user_id == str(user_id),
+            WorkspaceMember.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def check_permission(
         self, workspace_id: str, user_id: str,
         min_role: WorkspaceRole = WorkspaceRole.VIEWER
     ) -> None:
         """Logic kiểm tra quyền hạn của user trong workspace"""
 
-        result = await self.db.execute(
-            select(WorkspaceMember)
-            .where(
-                WorkspaceMember.workspace_id == workspace_id,
-                WorkspaceMember.user_id == user_id,
-                WorkspaceMember.deleted_at.is_(None)
-            )
-        )
-
-        current_user_member = result.scalar_one_or_none()
+        current_user_member = await self.get_member(workspace_id, user_id)
 
         not_permission = HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

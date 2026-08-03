@@ -1,7 +1,6 @@
-import uuid
-
 from pydantic import BaseModel, Field
 
+from app.modules.common.schemas import ProjectBasicInfo
 from app.modules.projects.models import ProjectStatus
 from app.modules.tasks.schemas import TaskResponse
 
@@ -48,21 +47,11 @@ class TaskList(BaseModel):
     data: list[TaskResponse] = Field(default_factory=list)
     page: PageInfo
 
-class ProjectBasicInfo(BaseModel):
-    """Dữ liệu thông tin cơ bản của project"""
 
-    id: uuid.UUID
-    workspace_id: uuid.UUID
-    name: str
-    status: ProjectStatus
-    description: str | None = None
-
-    model_config = {
-        "from_attributes": True
-    }
 
 class ProjectResponse(ProjectBasicInfo):
     """Dữ liệu trả về thông tin chi tiết Project"""
 
     tasks: TaskList
+
 

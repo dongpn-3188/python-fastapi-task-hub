@@ -12,6 +12,7 @@ from app.modules.projects.schemas import (
     PageInfo,
     TaskList,
 )
+from app.modules.projects.service import ProjectService
 from app.modules.tasks.models import Task, TaskStatus
 from app.modules.tasks.schemas import (
     CreateTaskRequest,
@@ -25,9 +26,13 @@ from app.services.redis import RedisClientWrapper
 
 
 class TaskService:
-    def __init__(self, db: AsyncSession, redis: RedisClientWrapper):
+    def __init__(
+            self, db: AsyncSession,
+            redis: RedisClientWrapper, project_service: ProjectService
+        ):
         self.db = db
         self.redis = redis
+        self.project_service = project_service
 
     async def _get_filtered_task_ids(
         self, project_id: uuid.UUID, filter: TaskFilterRequest
@@ -53,7 +58,11 @@ class TaskService:
         stmt = (
             select(Task)
             .where(Task.id.in_(task_ids))
-            .options(selectinload(Task.assignee), selectinload(Task.creator))
+            .options(
+                selectinload(Task.assignee),
+                selectinload(Task.creator),
+                selectinload(Task.project)
+            )
         )
         res = await self.db.execute(stmt)
         return res.scalars().all()
@@ -150,6 +159,20 @@ class TaskService:
     ) -> TaskResponse:
         """Logic tạo Task mới"""
 
+        await self.project_service.check_permission(
+            project_id=project_id,
+            user_id=creator,
+            min_role=WorkspaceRole.EDITOR
+        )
+
+        if create_data.assignee_id:
+            await self.project_service.check_permission(
+                project_id=project_id,
+                user_id=str(create_data.assignee_id),
+                min_role=WorkspaceRole.VIEWER,
+                is_check_assignee=True
+            )
+
         result = await self.db.execute(
             select(Task.id)
             .where(
@@ -179,7 +202,7 @@ class TaskService:
 
         self.db.add(new_task)
         await self.db.commit()
-        await self.db.refresh(new_task)
+        await self.db.refresh(new_task, ["project", "assignee"])
 
         task_dto = TaskResponse.model_validate(new_task)
 
@@ -248,13 +271,21 @@ class TaskService:
             task_id=task_id, user_id=current_user_id
         )
 
+        if update_data.assignee_id:
+            await self.project_service.check_permission(
+                project_id=task_info.project_id,
+                user_id=str(update_data.assignee_id),
+                min_role=WorkspaceRole.VIEWER,
+                is_check_assignee=True
+            )
+
         update_dict = update_data.model_dump(exclude_unset=True)
 
         for key, value in update_dict.items():
             setattr(task_info, key, value)
 
         await self.db.commit()
-        await self.db.refresh(task_info)
+        await self.db.refresh(task_info, ["project", "assignee"])
 
         task_dto = TaskResponse.model_validate(task_info)
 

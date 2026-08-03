@@ -4,6 +4,7 @@ from enum import Enum as PyEnum
 
 from pydantic import BaseModel, Field
 
+from app.modules.common.schemas import ProjectBasicInfo, UserInfo
 from app.modules.tasks.models import TaskPriority, TaskStatus
 
 
@@ -11,6 +12,14 @@ class TaskResponse(BaseModel):
     """Dữ liệu trả về thông tin Task"""
 
     id: uuid.UUID
+    project: ProjectBasicInfo
+    assignee: UserInfo | None = None
+    title: str
+    description: str | None = None
+    status: TaskStatus
+    priority: TaskPriority
+    due_date: datetime
+
 
     model_config = {
         "from_attributes": True
@@ -43,7 +52,7 @@ class FilterOption(BaseModel):
 
     field: FilterField
     method: FilterMethod
-    value: str
+    value: str | None = None
 
 class TaskFilterRequest(BaseModel):
     """Dữ liệu filter danh sách Task"""

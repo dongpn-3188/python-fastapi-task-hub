@@ -4,10 +4,10 @@ from fastapi import HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.common.schemas import ProjectBasicInfo
 from app.modules.projects.models import Project, ProjectStatus
 from app.modules.projects.schemas import (
     PageInfo,
-    ProjectBasicInfo,
     ProjectCreate,
     ProjectResponse,
     ProjectUpdate,
@@ -163,7 +163,8 @@ class ProjectService:
 
     async def check_permission(
         self, project_id: uuid.UUID, user_id: str,
-        min_role: WorkspaceRole = WorkspaceRole.VIEWER
+        min_role: WorkspaceRole = WorkspaceRole.VIEWER,
+        is_check_assignee: bool = False
     ) -> None:
         """Logic kiểm tra quyền hạn của user trong project"""
 
@@ -181,6 +182,9 @@ class ProjectService:
         current_user_member = result.scalar_one_or_none()
 
         not_permission = HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assignee không phải là thành viên của workspace",
+        ) if is_check_assignee else HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn không có quyền thực hiện thao tác này",
         )

@@ -34,41 +34,44 @@ def apply_task_filters(stmt: Select[Any], filter_req: TaskFilterRequest)->Select
 
         val: Any = item.value
         if item.field in (FilterField.ASSIGNEE, FilterField.CREATE_BY):
-            try:
-                val = uuid.UUID(item.value)
-            except (ValueError, TypeError):
-                continue
+            if val is not None:
+                try:
+                    val = uuid.UUID(item.value)
+                except (ValueError, TypeError):
+                    val = None
 
-        match item.method:
-            case FilterMethod.IS:
-                conditions.append(column == val)
+        if val is None or val == "":
+            match item.method:
+                case FilterMethod.IS:
+                    conditions.append(column.is_(None))
+                case FilterMethod.IS_NOT:
+                    conditions.append(column.is_not(None))
 
-            case FilterMethod.IS_NOT:
-                conditions.append(column != val)
+        else:
+            match item.method:
+                case FilterMethod.IS:
+                    conditions.append(column == val)
 
-            case FilterMethod.CONTAIN:
-                safe_val = (
-                    str(val)
-                    .replace("\\", r"\\")
-                    .replace("%", r"\%")
-                    .replace("_", r"\_")
-                )
-                conditions.append(column.ilike(f"%{safe_val}%"))
+                case FilterMethod.IS_NOT:
+                    conditions.append(column != val)
 
-            case FilterMethod.DOESNT_CONTAIN:
-                safe_val = (
-                    str(val)
-                    .replace("\\", r"\\")
-                    .replace("%", r"\%")
-                    .replace("_", r"\_")
-                )
-                conditions.append(~column.ilike(f"%{safe_val}%"))
+                case FilterMethod.CONTAIN | FilterMethod.DOESNT_CONTAIN:
+                        safe_val = (
+                            str(val)
+                            .replace("\\", r"\\")
+                            .replace("%", r"\%")
+                            .replace("_", r"\_")
+                        )
+                        clause = column.ilike(f"%{safe_val}%")
+                        conditions.append(
+                            clause if item.method == FilterMethod.CONTAIN else ~clause
+                        )
 
-            case FilterMethod.GREATER:
-                conditions.append(column > val)
+                case FilterMethod.GREATER:
+                    conditions.append(column > val)
 
-            case FilterMethod.LESS:
-                conditions.append(column < val)
+                case FilterMethod.LESS:
+                    conditions.append(column < val)
 
     if conditions:
         stmt = stmt.where(*conditions)

@@ -5,15 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user_id
 from app.database import get_db
+from app.modules.common.schemas import ProjectBasicInfo
 from app.modules.projects.schemas import (
-    ProjectBasicInfo,
     ProjectResponse,
     ProjectUpdate,
 )
 from app.modules.projects.service import ProjectService
 from app.modules.tasks.schemas import CreateTaskRequest, TaskFilterRequest, TaskResponse
 from app.modules.tasks.service import TaskService
-from app.modules.workspaces.models import WorkspaceRole
 from app.services.redis import RedisClientWrapper, get_redis_client
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -36,7 +35,10 @@ async def update_project(
     )
 
 @router.post(
-    "/{id}/tasks/search", response_model=ProjectResponse, status_code=status.HTTP_200_OK
+    "/{id}/tasks/search",
+    response_model=ProjectResponse,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_200_OK
 )
 async def get_project_detail(
     id: uuid.UUID,
@@ -47,7 +49,7 @@ async def get_project_detail(
 ) -> ProjectResponse:
     """Endpoint lấy thông tin chi tiết project và task"""
     project_service = ProjectService(db)
-    task_service = TaskService(db, redis_client)
+    task_service = TaskService(db, redis_client, project_service)
     project_info = await project_service.get_project_basic_info(str(id))
     await project_service.check_permission(
         project_id=id,
@@ -60,7 +62,10 @@ async def get_project_detail(
     )
 
 @router.post(
-    "/{id}/tasks", response_model=TaskResponse, status_code=status.HTTP_200_OK
+    "/{id}/tasks",
+    response_model=TaskResponse,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_200_OK
 )
 async def create_new_task_in_project(
     id: uuid.UUID,
@@ -71,11 +76,6 @@ async def create_new_task_in_project(
 ) -> TaskResponse:
     """Endpoint lấy thông tin chi tiết project và task"""
     project_service = ProjectService(db)
-    task_service = TaskService(db, redis_client)
-    await project_service.check_permission(
-        project_id=id,
-        user_id=current_user_id,
-        min_role=WorkspaceRole.EDITOR
-    )
+    task_service = TaskService(db, redis_client, project_service)
     return await task_service.create_new_task(id, current_user_id, create_data)
 

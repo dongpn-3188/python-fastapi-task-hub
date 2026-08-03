@@ -99,7 +99,7 @@ class RedisClientWrapper:
         except Exception as e:
             logger.warning(f"Redis Pipeline execution failed: {e}")
         finally:
-            await pipe.close()
+            await pipe.aclose() # type: ignore[attr-defined]
 
 # Instance Singleton duy nhất dùng toàn app
 redis_client = RedisClientWrapper()
