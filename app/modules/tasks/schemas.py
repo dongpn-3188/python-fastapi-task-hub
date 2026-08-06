@@ -8,6 +8,17 @@ from app.modules.common.schemas import ProjectBasicInfo, UserInfo
 from app.modules.tasks.models import TaskPriority, TaskStatus
 
 
+class LabelResponse(BaseModel):
+    """Dữ liệu chi tiết của label"""
+
+    id: uuid.UUID
+    name: str
+    color: str
+
+    model_config = {
+        "from_attributes": True
+    }
+
 class TaskResponse(BaseModel):
     """Dữ liệu trả về thông tin Task"""
 
@@ -19,6 +30,7 @@ class TaskResponse(BaseModel):
     status: TaskStatus
     priority: TaskPriority
     due_date: datetime
+    labels: list[LabelResponse] = []
 
 
     model_config = {
@@ -100,3 +112,23 @@ class UpdateTaskRequest(TaskBaseRequest):
     status: TaskStatus | None = Field(
         default=None, description="trạng thái của Task"
     )
+
+class CommentRequest(BaseModel):
+    """Dữ liệu comment gửi lên"""
+
+    content: str = Field(
+        max_length=1000, description="nội dung comment"
+    )
+
+class CommentResponse(BaseModel):
+    """Dữ liệu chi tiết comment trả về"""
+
+    id: uuid.UUID
+    author: UserInfo | None = None
+    content: str
+    create_at: datetime
+
+
+    model_config = {
+        "from_attributes": True
+    }

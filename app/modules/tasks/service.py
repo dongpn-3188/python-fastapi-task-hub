@@ -1,9 +1,12 @@
 import uuid
+from collections import defaultdict
 from collections.abc import Sequence
 from typing import cast
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,9 +16,12 @@ from app.modules.projects.schemas import (
     TaskList,
 )
 from app.modules.projects.service import ProjectService
-from app.modules.tasks.models import Task, TaskStatus
+from app.modules.tasks.models import Label, Task, TaskComment, TaskLabel, TaskStatus
 from app.modules.tasks.schemas import (
+    CommentRequest,
+    CommentResponse,
     CreateTaskRequest,
+    LabelResponse,
     TaskFilterRequest,
     TaskResponse,
     UpdateTaskRequest,
@@ -104,6 +110,27 @@ class TaskService:
 
         return task_dtos
 
+    async def _get_labels_for_task_ids(
+        self, task_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, list[LabelResponse]]:
+        if not task_ids:
+            return {}
+
+        # Query 1 lần lấy toàn bộ Label của tất cả task_id trong trang
+        stmt = (
+            select(Label, TaskLabel.task_id)
+            .join(TaskLabel, Label.id == TaskLabel.label_id)
+            .where(TaskLabel.task_id.in_(task_ids))
+        )
+        result = await self.db.execute(stmt)
+
+        # Grouping data theo task_id dạng dict
+        labels_map: dict[uuid.UUID, list[LabelResponse]] = defaultdict(list)
+        for label, task_id in result.all():
+            labels_map[task_id].append(LabelResponse.model_validate(label))
+
+        return labels_map
+
     async def get_task_list_by_filter(
         self, project_id: uuid.UUID, filter_data: TaskFilterRequest
     ) -> TaskList:
@@ -145,8 +172,20 @@ class TaskService:
         # 5. Assemble đúng thứ tự paged_ids ban đầu
         ordered_tasks = [tasks_map[tid] for tid in paged_ids if tid in tasks_map]
 
+        # 6. Fetch Labels (và Comment count/comments) theo Batch cho toàn bộ paged_ids
+        labels_map = await self._get_labels_for_task_ids(paged_ids)
+        # comment_counts_map = await self._get_comment_counts_for_task_ids(paged_ids)
+
+        # 7. Enrich dữ liệu tươi vào từng Task DTO
+        enriched_tasks = []
+        for task in ordered_tasks:
+            task_data = task.model_dump()
+            task_data["labels"] = labels_map.get(task.id, [])
+            # task_data["comment_count"] = comment_counts_map.get(task.id, 0)
+            enriched_tasks.append(TaskResponse(**task_data))
+
         return TaskList(
-            data=ordered_tasks,
+            data=enriched_tasks,
             page=PageInfo(
                 page_number=page,
                 page_size=size,
@@ -314,5 +353,154 @@ class TaskService:
             await self.redis.safe_delete(f"task:{task_info.id}")
         except Exception:
             pass
+
+        return None
+
+    async def add_label(
+        self, task_id: uuid.UUID, current_user_id: str, label_id: uuid.UUID
+    ) -> None:
+        await self.check_task_permission(
+            task_id=task_id, user_id=current_user_id
+        )
+
+        stmt = (
+            insert(TaskLabel)
+            .values(task_id=task_id, label_id=label_id)
+            .on_conflict_do_nothing()
+        )
+
+        try:
+            await self.db.execute(stmt)
+            await self.db.commit()
+        except IntegrityError:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Label không tồn tại"
+            ) from None
+
+        return None
+
+    async def remove_label(
+        self, task_id: uuid.UUID, current_user_id: str, label_id: uuid.UUID
+    ) -> None:
+        await self.check_task_permission(
+            task_id=task_id, user_id=current_user_id
+        )
+
+        stmt = delete(TaskLabel).where(
+            TaskLabel.task_id == task_id,
+            TaskLabel.label_id == label_id,
+        )
+
+        await self.db.execute(stmt)
+        await self.db.commit()
+
+        return None
+
+    async def add_comment(
+        self, task_id: uuid.UUID, current_user_id: str, data: CommentRequest
+    ) -> CommentResponse:
+        """Logic tạo comment mới trong task"""
+
+        await self.check_task_permission(
+            task_id=task_id,
+            user_id=current_user_id,
+            min_role=WorkspaceRole.VIEWER
+        )
+
+        new_comment = TaskComment(
+            id=uuid.uuid4(),
+            task_id=task_id,
+            author_id=current_user_id,
+            content=data.content,
+        )
+
+        self.db.add(new_comment)
+        await self.db.commit()
+        await self.db.refresh(new_comment, ["author", "create_at"])
+
+        return CommentResponse.model_validate(new_comment)
+
+
+    async def edit_comment(
+        self, task_id: uuid.UUID,
+        current_user_id: str,
+        comment_id: uuid.UUID,
+        data: CommentRequest
+    ) -> CommentResponse:
+        """Logic sửa nội dung comment"""
+
+        stmt = (
+            select(TaskComment, Task.project_id)
+            .join(Task, TaskComment.task_id == Task.id)
+            .options(selectinload(TaskComment.author))
+            .where(
+                TaskComment.id == comment_id,
+                TaskComment.task_id == task_id,
+            )
+        )
+
+        result = await self.db.execute(stmt)
+        row = result.first()
+
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Comment không tồn tại hoặc dữ liệu không hợp lệ",
+            )
+
+        comment, project_id = row
+
+        if comment.author_id != current_user_id:
+            await self.project_service.check_permission(
+                project_id=project_id,
+                user_id=current_user_id,
+                min_role=WorkspaceRole.OWNER
+            )
+
+        comment.content = data.content
+
+        response = CommentResponse.model_validate(comment)
+
+        await self.db.commit()
+
+        return response
+
+    async def delete_comment(
+        self, task_id: uuid.UUID,
+        current_user_id: str,
+        comment_id: uuid.UUID,
+    ) -> None:
+        """Logic xóa comment"""
+
+        stmt = (
+            select(TaskComment, Task.project_id)
+            .join(Task, TaskComment.task_id == Task.id)
+            .where(
+                TaskComment.id == comment_id,
+                TaskComment.task_id == task_id,
+            )
+        )
+
+        result = await self.db.execute(stmt)
+        row = result.first()
+
+        if not row:
+            return None
+
+        comment, project_id = row
+
+        if comment.author_id != current_user_id:
+            await self.project_service.check_permission(
+                project_id=project_id,
+                user_id=current_user_id,
+                min_role=WorkspaceRole.OWNER
+            )
+
+        await self.db.execute(
+            delete(TaskComment).where(TaskComment.id == comment.id)
+        )
+        await self.db.commit()
 
         return None

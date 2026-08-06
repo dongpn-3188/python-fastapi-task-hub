@@ -54,4 +54,13 @@ class ProjectResponse(ProjectBasicInfo):
 
     tasks: TaskList
 
+class CreateLabelRequest(BaseModel):
+    """Dữ liệu khởi tạo label trong project"""
 
+    name: str = Field(..., min_length=1, description="Tên của label")
+    color: str = Field(
+        ...,
+        pattern=r"^#[0-9a-fA-F]{6}$",
+        description="Mã màu HEX của nhãn (định dạng #RRGGBB)",
+        examples=["#FF5733", "#000000"],
+    )
