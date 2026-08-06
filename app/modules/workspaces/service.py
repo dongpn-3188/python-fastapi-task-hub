@@ -7,10 +7,10 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.modules.common.schemas import ProjectBasicInfo, UserInfo
 from app.modules.users.models import User
 from app.modules.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole
 from app.modules.workspaces.schemas import (
-    UserInfo,
     WorkspaceMembersRequest,
     WorkspaceResponse,
 )
@@ -81,22 +81,27 @@ class WorkspaceService:
 
         return valid_user_ids, req_user_ids - valid_user_ids
 
+    async def get_member(
+            self,
+            workspace_id: uuid.UUID | str,
+            user_id: uuid.UUID | str
+    ) -> WorkspaceMember | None:
+        """Kiểm tra xem user có phải thành viên active trong workspace không"""
+        stmt = select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == str(workspace_id),
+            WorkspaceMember.user_id == str(user_id),
+            WorkspaceMember.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def check_permission(
         self, workspace_id: str, user_id: str,
         min_role: WorkspaceRole = WorkspaceRole.VIEWER
     ) -> None:
         """Logic kiểm tra quyền hạn của user trong workspace"""
 
-        result = await self.db.execute(
-            select(WorkspaceMember)
-            .where(
-                WorkspaceMember.workspace_id == workspace_id,
-                WorkspaceMember.user_id == user_id,
-                WorkspaceMember.deleted_at.is_(None)
-            )
-        )
-
-        current_user_member = result.scalar_one_or_none()
+        current_user_member = await self.get_member(workspace_id, user_id)
 
         not_permission = HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -116,8 +121,13 @@ class WorkspaceService:
                 if current_user_member.role != WorkspaceRole.OWNER:
                     raise not_permission
 
-    async def get_workspace_info(self, workspace_id:str) -> WorkspaceResponse:
+    async def get_workspace_info(
+            self, workspace_id:str, projects_info: list[ProjectBasicInfo] | None = None
+    ) -> WorkspaceResponse:
         """Logic lấy thông tin workspace theo id"""
+
+        if projects_info is None:
+            projects_info = []
 
         self.db.expire_all()
 
@@ -163,7 +173,8 @@ class WorkspaceService:
             id=workspace.id,
             name=workspace.name,
             owner=owner_info,
-            members=members_info
+            members=members_info,
+            projects=projects_info
         )
 
     async def create_new_workspace(
@@ -200,7 +211,7 @@ class WorkspaceService:
         self.db.add(new_workspace_member)
         await self.db.commit()
 
-        return await self.get_workspace_info(str(new_workspace.id))
+        return await self.get_workspace_info(str(new_workspace_id))
 
     async def add_members_to_workspace(
         self, workspace_id: str, members_data: WorkspaceMembersRequest

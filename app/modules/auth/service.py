@@ -9,11 +9,11 @@ from app.config import settings
 from app.modules.auth.schemas import LoginRequest, TokenResponse
 from app.modules.auth.utils import create_jwt_token, decode_jwt_token, verify_password
 from app.modules.users.models import User
-from app.services.redis import RedisClient
+from app.services.redis import RedisClientWrapper
 
 
 class AuthService:
-    def __init__(self, db: AsyncSession, redis: RedisClient):
+    def __init__(self, db: AsyncSession, redis: RedisClientWrapper):
         self.db = db
         self.redis = redis
 
@@ -46,7 +46,7 @@ class AuthService:
             raise HTTPException(status_code=400, detail="Token không chính xác")
 
         redis_key = f"refresh_token:{user_id}"
-        cache_redis_token = await self.redis.get(redis_key)
+        cache_redis_token = await self.redis.safe_get(redis_key)
 
         if refresh_token != cache_redis_token:
             raise HTTPException(status_code=400, detail="Token không chính xác")
@@ -75,11 +75,11 @@ class AuthService:
 
         # Xoá cache refresh token
         redis_key = f"refresh_token:{user_id}"
-        await self.redis.delete(redis_key)
+        await self.redis.safe_delete(redis_key)
 
         # Get block list access token
         block_access_tokens_redis_key = f"block_access_list:{user_id}"
-        raw_block_data = await self.redis.get(block_access_tokens_redis_key)
+        raw_block_data = await self.redis.safe_get(block_access_tokens_redis_key)
         block_dict: dict[str, int] = {}
         if raw_block_data:
             try:
@@ -100,8 +100,8 @@ class AuthService:
         # Set lại block list
 
         # Tự động clear cache khi token mới thêm hết hạn
-        await self.redis.setex(
-            block_access_tokens_redis_key, ttl_seconds, json.dumps(block_dict)
+        await self.redis.safe_set(
+            block_access_tokens_redis_key, json.dumps(block_dict), ttl_seconds
         )
 
         return None
@@ -119,8 +119,8 @@ class AuthService:
         refresh_token = create_jwt_token(user.id, refresh_expires, token_type="refresh")
 
         redis_key = f"refresh_token:{user.id}"
-        await self.redis.setex(
-            redis_key, int(refresh_expires.total_seconds()), refresh_token
+        await self.redis.safe_set(
+            redis_key, refresh_token, int(refresh_expires.total_seconds())
         )
 
         return TokenResponse(access_token=access_token, refresh_token=refresh_token)

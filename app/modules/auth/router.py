@@ -8,7 +8,7 @@ from app.modules.auth.schemas import LoginRequest, RefeshTokenRequest, TokenResp
 from app.modules.auth.service import AuthService
 from app.modules.users.schemas import UserCreate, UserResponse
 from app.modules.users.service import UserService
-from app.services.redis import RedisClient, get_redis_client
+from app.services.redis import RedisClientWrapper, get_redis_client
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 async def login(
     login_data: LoginRequest,
     db: AsyncSession = Depends(get_db), # noqa: B008
-    redis_client: RedisClient = Depends(get_redis_client), # noqa: B008
+    redis_client: RedisClientWrapper = Depends(get_redis_client), # noqa: B008
 ) -> TokenResponse:
     """Endpoint xử lý đăng nhập trả về Access và Refresh Token"""
     auth_service = AuthService(db, redis_client)
@@ -40,7 +40,7 @@ async def register(
 async def refresh(
     refresh_data: RefeshTokenRequest,
     db: AsyncSession = Depends(get_db), # noqa: B008
-    redis_client: RedisClient = Depends(get_redis_client), # noqa: B008
+    redis_client: RedisClientWrapper = Depends(get_redis_client), # noqa: B008
 ) -> TokenResponse:
     """Endpoint để làm mới cặp token cho user"""
     auth_service = AuthService(db, redis_client)
@@ -51,7 +51,7 @@ async def refresh(
 async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(reusable_oauth2), # noqa: B008
     db: AsyncSession = Depends(get_db), # noqa: B008
-    redis_client: RedisClient = Depends(get_redis_client), # noqa: B008
+    redis_client: RedisClientWrapper = Depends(get_redis_client), # noqa: B008
 ) -> None:
     """Endpoint để logout user"""
     auth_service = AuthService(db, redis_client)
