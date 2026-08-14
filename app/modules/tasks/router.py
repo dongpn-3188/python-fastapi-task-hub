@@ -55,7 +55,7 @@ async def delete_task_by_id(
 )
 async def add_label_to_task(
     id: uuid.UUID,
-    label_id: uuid.UUID,
+    label_id: int,
     current_user_id: str = Depends(get_current_user_id),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     redis_client: RedisClientWrapper = Depends(get_redis_client), # noqa: B008
@@ -71,7 +71,7 @@ async def add_label_to_task(
 )
 async def remove_label_from_task(
     id: uuid.UUID,
-    label_id: uuid.UUID,
+    label_id: int,
     current_user_id: str = Depends(get_current_user_id),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     redis_client: RedisClientWrapper = Depends(get_redis_client), # noqa: B008
@@ -84,6 +84,7 @@ async def remove_label_from_task(
 @router.post(
     "/{id}/comments",
     response_model=CommentResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_201_CREATED,
 )
 async def add_comment_to_task(
@@ -101,11 +102,12 @@ async def add_comment_to_task(
 @router.patch(
     "/{id}/comments/{comment_id}",
     response_model=CommentResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_200_OK,
 )
 async def edit_comment_by_id(
     id: uuid.UUID,
-    comment_id: uuid.UUID,
+    comment_id: int,
     data: CommentRequest,
     current_user_id: str = Depends(get_current_user_id),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
@@ -122,7 +124,7 @@ async def edit_comment_by_id(
 )
 async def delete_comment_by_id(
     id: uuid.UUID,
-    comment_id: uuid.UUID,
+    comment_id: int,
     current_user_id: str = Depends(get_current_user_id),  # noqa: B008
     db: AsyncSession = Depends(get_db),  # noqa: B008
     redis_client: RedisClientWrapper = Depends(get_redis_client), # noqa: B008

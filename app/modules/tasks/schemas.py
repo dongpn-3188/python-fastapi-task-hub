@@ -11,7 +11,7 @@ from app.modules.tasks.models import TaskPriority, TaskStatus
 class LabelResponse(BaseModel):
     """Dữ liệu chi tiết của label"""
 
-    id: uuid.UUID
+    id: int
     name: str
     color: str
 
@@ -123,10 +123,10 @@ class CommentRequest(BaseModel):
 class CommentResponse(BaseModel):
     """Dữ liệu chi tiết comment trả về"""
 
-    id: uuid.UUID
+    id: int
     author: UserInfo | None = None
     content: str
-    create_at: datetime
+    created_at: datetime
 
 
     model_config = {

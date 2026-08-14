@@ -87,7 +87,7 @@ async def create_new_task_in_project(
 
 @router.post(
     "/{id}/labels",
-    response_model=TaskResponse,
+    response_model=LabelResponse,
     response_model_exclude_none=True,
     status_code=status.HTTP_200_OK
 )

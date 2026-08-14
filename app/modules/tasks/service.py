@@ -357,7 +357,7 @@ class TaskService:
         return None
 
     async def add_label(
-        self, task_id: uuid.UUID, current_user_id: str, label_id: uuid.UUID
+        self, task_id: uuid.UUID, current_user_id: str, label_id: int
     ) -> None:
         await self.check_task_permission(
             task_id=task_id, user_id=current_user_id
@@ -382,7 +382,7 @@ class TaskService:
         return None
 
     async def remove_label(
-        self, task_id: uuid.UUID, current_user_id: str, label_id: uuid.UUID
+        self, task_id: uuid.UUID, current_user_id: str, label_id: int
     ) -> None:
         await self.check_task_permission(
             task_id=task_id, user_id=current_user_id
@@ -410,7 +410,6 @@ class TaskService:
         )
 
         new_comment = TaskComment(
-            id=uuid.uuid4(),
             task_id=task_id,
             author_id=current_user_id,
             content=data.content,
@@ -418,7 +417,7 @@ class TaskService:
 
         self.db.add(new_comment)
         await self.db.commit()
-        await self.db.refresh(new_comment, ["author", "create_at"])
+        await self.db.refresh(new_comment, ["author", "created_at"])
 
         return CommentResponse.model_validate(new_comment)
 
@@ -426,7 +425,7 @@ class TaskService:
     async def edit_comment(
         self, task_id: uuid.UUID,
         current_user_id: str,
-        comment_id: uuid.UUID,
+        comment_id: int,
         data: CommentRequest
     ) -> CommentResponse:
         """Logic sửa nội dung comment"""
@@ -470,7 +469,7 @@ class TaskService:
     async def delete_comment(
         self, task_id: uuid.UUID,
         current_user_id: str,
-        comment_id: uuid.UUID,
+        comment_id: int,
     ) -> None:
         """Logic xóa comment"""
 
