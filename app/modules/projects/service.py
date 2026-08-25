@@ -2,17 +2,21 @@ import uuid
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.common.schemas import ProjectBasicInfo
 from app.modules.projects.models import Project, ProjectStatus
 from app.modules.projects.schemas import (
+    CreateLabelRequest,
     PageInfo,
     ProjectCreate,
     ProjectResponse,
     ProjectUpdate,
     TaskList,
 )
+from app.modules.tasks.models import Label
+from app.modules.tasks.schemas import LabelResponse
 from app.modules.workspaces.models import WorkspaceMember, WorkspaceRole
 
 
@@ -201,3 +205,37 @@ class ProjectService:
             case WorkspaceRole.OWNER:
                 if current_user_member.role != WorkspaceRole.OWNER:
                     raise not_permission
+
+    async def create_new_label(
+        self, project_id: uuid.UUID, user_id: str, label_data: CreateLabelRequest
+    ) -> LabelResponse:
+        """Logic tạo label mới trong project"""
+
+        await self.check_permission(
+            project_id=project_id,
+            user_id=user_id,
+            min_role=WorkspaceRole.EDITOR,
+            is_check_assignee=False
+        )
+
+        insert_stmt = insert(Label).values(
+            {
+                "project_id": project_id,
+                "name": label_data.name,
+                "color": label_data.color,
+            })
+        upsert_stmt = (
+            insert_stmt.on_conflict_do_update(
+                constraint="uq_project_label_name",
+                set_=dict(color=insert_stmt.excluded.color),
+            )
+            .returning(Label)
+        )
+
+        result = await self.db.scalars(upsert_stmt)
+        label = result.one()
+        response = LabelResponse.model_validate(label)
+
+        await self.db.commit()
+
+        return response

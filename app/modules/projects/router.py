@@ -7,11 +7,17 @@ from app.core.security import get_current_user_id
 from app.database import get_db
 from app.modules.common.schemas import ProjectBasicInfo
 from app.modules.projects.schemas import (
+    CreateLabelRequest,
     ProjectResponse,
     ProjectUpdate,
 )
 from app.modules.projects.service import ProjectService
-from app.modules.tasks.schemas import CreateTaskRequest, TaskFilterRequest, TaskResponse
+from app.modules.tasks.schemas import (
+    CreateTaskRequest,
+    LabelResponse,
+    TaskFilterRequest,
+    TaskResponse,
+)
 from app.modules.tasks.service import TaskService
 from app.services.redis import RedisClientWrapper, get_redis_client
 
@@ -79,3 +85,18 @@ async def create_new_task_in_project(
     task_service = TaskService(db, redis_client, project_service)
     return await task_service.create_new_task(id, current_user_id, create_data)
 
+@router.post(
+    "/{id}/labels",
+    response_model=LabelResponse,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_200_OK
+)
+async def create_new_label_in_project(
+    id: uuid.UUID,
+    create_data: CreateLabelRequest,
+    current_user_id: str = Depends(get_current_user_id),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> LabelResponse:
+    """End point tạo mới label trong project"""
+    project_service = ProjectService(db)
+    return await project_service.create_new_label(id, current_user_id, create_data)
